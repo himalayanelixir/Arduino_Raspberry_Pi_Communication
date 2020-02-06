@@ -1,4 +1,4 @@
-# Arduino Raspberry Pi Communication
+# Raspberry Pi Arduino Communication
 
 The function of this code is to be able to pass messages between a Raspberry Pi and an Arduino. This setup has the Raspberry Pi as the master and the Arduino as a slave.
 
