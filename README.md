@@ -11,7 +11,7 @@ The function of this code is to be able to pass messages between a Raspberry Pi 
  1. Requirements: Need Python 3 and pyserial. pyserial can be installed using pip. 
 
     ```
-    pip3 install pyserial
+    pip install -r Raspberry\ Pi/requirements.txt
     ```
 
  3. You will likely have to modify the `serPort = "/dev/cu.SLAB_USBtoUART"` line in the code to match which port your Arduino will be located on. 
