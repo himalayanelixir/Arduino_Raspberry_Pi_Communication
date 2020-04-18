@@ -5,15 +5,7 @@
 #include <String.h>
 
 // constants
-#define DEBOUNCE_TIME .4
-#define SAMPLE_FREQUENCY 20
-#define MAXIMUM_DEBOUNCE (DEBOUNCE_TIME * SAMPLE_FREQUENCY)
-#define MAXIMUM_NUMBER_OF_MOTORS 22
 #define ARRAY_NUMBER 1
-#define NUMBER_OF_MOTORS 2
-#define NUMBER_OF_MOTORS_MOVING 1
-#define TIMEOUT 50000
-#define IGNORE_INPUT_TIME 150
 #define MESSAGE_CHAR_LENGTH 300
 
 // function declarations
@@ -31,84 +23,25 @@ void StartMotors();
 // variables for communication
 char received_chars[MESSAGE_CHAR_LENGTH];
 bool new_data = false;
-// create servo objects
-Servo my_servo[NUMBER_OF_MOTORS];
-// create a array of ports with the order: motor, counter, reset
-int ports[MAXIMUM_NUMBER_OF_MOTORS][3] = {
-    {11, 12, 13}, {8, 9, 10}, {5, 6, 7}, {2, 3, 4}, {14, 15, 16}, {17, 18, 19},
-    {20, 21, 22}, {23, 24, 25}, {29, 30, 31}, {35, 36, 37}, {41, 42, 43},
-    {47, 48, 49}, {26, 27, 28}, {32, 33, 34}, {38, 39, 40}, {44, 45, 46},
-    {50, 51, 52}, {53, 54, 55}, {56, 57, 58}, {59, 60, 61}, {63, 64, 65},
-    {62, 66, 67}
-};
+
 // integer array that contains the direction and number of rotations a motor,
 // and a flag that determines if it's moving, and another number that determines
 // if we are ignoreing inputs from the switches or not
 int motor_commands[NUMBER_OF_MOTORS][4] = { 0 };
-// array of new switch values
-byte motor_sensor_counter1[NUMBER_OF_MOTORS] = { 0 };
-// array of old switch values
-byte motor_sensor_counter2[NUMBER_OF_MOTORS] = { 0 };
-// Previous return value (CheckSwitch function)
-int previous_value[NUMBER_OF_MOTORS] = { 1 };
-// 0 or 1 depending on the input signal
-byte input[NUMBER_OF_MOTORS] = { 0 };
-// will range from 0 to the specified MAXIMUM_DEBOUNCE
-int integrator[NUMBER_OF_MOTORS] = { 0 };
-// cleaned-up version of the input signal
-byte output[NUMBER_OF_MOTORS] = { 0 };
 // other variables needed for the ProcessData() function
 bool go = true;
-int total_turns = 0;
-int timeout_counter = 0;
-int moving_motors = 0;
-bool did_timeout = false;
 
 void setup() {
   // setup serial port
   Serial.begin(9600);
-  // initialize all motor ports
-  Serial.println("Begining Initialization");
-  Serial.print("Motor Ports: ");
-  for (int i = 0; i < NUMBER_OF_MOTORS; i++) {
-    int x = ports[i][0];
-    Serial.print(x);
-    Serial.print(" ");
-    my_servo[i].attach(x);
-  }
-  // initialize all counter ports
-  Serial.println("");
-  Serial.print("Counter Ports: ");
-  for (int i = 0; i < NUMBER_OF_MOTORS; i++) {
-    int x = ports[i][1];
-    Serial.print(x);
-    Serial.print(" ");
-    pinMode(x, INPUT_PULLUP);
-  }
-  // initialize all reset ports
-  Serial.println("");
-  Serial.print("Reset Ports: ");
-  for (int i = 0; i < NUMBER_OF_MOTORS; i++) {
-    int x = ports[i][2];
-    Serial.print(x);
-    Serial.print(" ");
-    pinMode(x, INPUT_PULLUP);
-  }
-  // zero all motors and initialize reset variables
-  for (int i = 0; i < NUMBER_OF_MOTORS; i++) {
-    my_servo[i].write(90);
-    motor_sensor_counter1[i] = 1;
-    motor_sensor_counter2[i] = 1;
-    output[i] = 1;
-    integrator[i] = MAXIMUM_DEBOUNCE;
-    motor_commands[i][3] = IGNORE_INPUT_TIME;
-  }
+  // initialize led
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, LOW);
+  // send ready message to Raspberry Pi
   Serial.print("<");
   Serial.print("Arduino is ready");
   Serial.print(" Array Number: ");
   Serial.print(ARRAY_NUMBER);
-  Serial.print(" Number of Motors: ");
-  Serial.print(NUMBER_OF_MOTORS);
   Serial.print(">");
 }
 
@@ -161,31 +94,10 @@ void RecvWithStartEndMarkers() {
 
 void Finished() {
   // sends message back to raspberry pi saying the command has been executed
-  if (did_timeout == true) {
-    Serial.print("\033[31m");
-    Serial.print("RECIEVED: TIMEOUT");
-    Serial.print(" - MOTOR(S): ");
-    for (int i = 0; i < NUMBER_OF_MOTORS; i++) {
-      if (motor_commands[i][1] != 0) {
-        Serial.print(i);
-        Serial.print(" ");
-      }
-    }
-    Serial.print("\033[0m");
-    Serial.print(">");
-  } else {
-    Serial.print("\033[32m");
-    Serial.print("RECIEVED: DONE");
-    Serial.print("\033[0m");
-    Serial.print(">");
-  }
-  for (int i = 0; i < NUMBER_OF_MOTORS; i++) {
-    my_servo[i].write(90);
-    motor_commands[i][0] = 0;
-    motor_commands[i][1] = 0;
-    motor_commands[i][2] = 0;
-    motor_commands[i][3] = IGNORE_INPUT_TIME;
-  }
+  Serial.print("\033[32m");
+  Serial.print("RECIEVED: DONE");
+  Serial.print("\033[0m");
+  Serial.print(">");
 }
 
 void PopulateArray() {
@@ -250,84 +162,4 @@ void ProcessData() {
     digitalWrite(LED_BUILTIN, LOW); 
     delay(1000);
   }   
-}
-
-int CountMoving() {
-  // count the number of moving motors
-  moving_motors = 0;
-  for (int i = 0; i < NUMBER_OF_MOTORS; i++) {
-    moving_motors += motor_commands[i][2];
-  }
-}
-
-void CheckCounter(int i) {
-  // check to see if we are on a rising edge
-  motor_sensor_counter2[i] = motor_sensor_counter1[i];
-  motor_sensor_counter1[i] = CheckSwitch(i, ports[i][1]);
-  if (motor_commands[i][0] == 1) {
-    if (motor_sensor_counter1[i] == 1 && motor_sensor_counter2[i] == 0) {
-      if (motor_commands[i][3] == 0) {
-        motor_commands[i][1] = motor_commands[i][1] - 1;
-      }
-    }
-  } else {
-    if (motor_sensor_counter1[i] == 0 && motor_sensor_counter2[i] == 1) {
-      if (motor_commands[i][3] == 0) {
-        motor_commands[i][1] = motor_commands[i][1] - 1;
-      }
-    }
-  }
-  if (motor_commands[i][1] < 0) {
-    motor_commands[i][1] = 0;
-  }
-}
-
-int CheckSwitch(int motor_number, int switchPort) {
-  // check to see if the encoder switch is pressed or not
-  /*Step 1: Update the integrator based on the input signal.  Note that the
-  integrator follows the input, decreasing or increasing towards the limits
-  as determined by the input state (0 or 1). */
-  input[motor_number] = digitalRead(switchPort);
-
-  if (input[motor_number] == 0) {
-    if (integrator[motor_number] > 0)
-      integrator[motor_number]--;
-  } else {
-    if (integrator[motor_number] < MAXIMUM_DEBOUNCE)
-      integrator[motor_number]++;
-  }
-
-  /*Step 2: Update the output state based on the integrator.  Note that the
-  output will only change states if the integrator has reached a limit,
-  either 0 or MAXIMUM_DEBOUNCE. */
-
-  if (integrator[motor_number] == 0) {
-    previous_value[motor_number] = 0;
-    return (0);
-  } else if (integrator[motor_number] >= MAXIMUM_DEBOUNCE) {
-    previous_value[motor_number] = 1;
-    return (1);
-  } else {
-    return (previous_value[motor_number]);
-  }
-}
-
-void StartMotors(int i) {
-  // move motors
-  if (motor_commands[i][0] == 1) {
-    // Move up
-    my_servo[i].write(80);
-  } else if (motor_commands[i][0] == 2) {
-    // Move down
-    my_servo[i].write(110);
-  } else if (motor_commands[i][0] == 0) {
-    // Don't Move
-    my_servo[i].write(90);
-  } else if (motor_commands[i][0] == 3) {
-    // Move Up for Reset
-    my_servo[i].write(80);
-  } else {
-    // Don't Move
-    my_servo[i].write(90);
-  }
 }
