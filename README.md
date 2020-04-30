@@ -1,12 +1,22 @@
-# Raspberry Pi Arduino Communication
+# Arduino Pi Communication
+<!-- vscode-markdown-toc -->
+* [Instructions](#Instructions)
+	* [Raspberry Pi](#RaspberryPi)
+	* [Arduinoo](#Arduinoo)
+
+<!-- vscode-markdown-toc-config
+	numbering=false
+	autoSave=true
+	/vscode-markdown-toc-config -->
+<!-- /vscode-markdown-toc -->
 
 The function of this code is to be able to pass messages between a Raspberry Pi and an Arduino. This setup has the Raspberry Pi as the master and the Arduino as a slave.
 
-![Diagram](https://raw.githubusercontent.com/himalayanelixir/Arduino_RaspberryPi_Ping/master/images/Arduino_RaspberryPi_Ping.png)
+![Diagram](https://raw.githubusercontent.com/himalayanelixir/arduino-pi-communication/master/docs/arduino-pi-communication.png)
 
-# Instructions
+## <a name='Instructions'></a>Instructions
 
-## Raspberry Pi
+### <a name='RaspberryPi'></a>Raspberry Pi
  
  1. Requirements: Need Python 3 and pyserial. pyserial can be installed using pip. 
 
@@ -25,7 +35,7 @@ The function of this code is to be able to pass messages between a Raspberry Pi 
  3. Enter commands using the format `<Up,Down,Left,Right>`. Currently the code is made to look for `< >` at the beginning and end of commands and different commands are separated by a comma. 
 
 
- ## Arduino
+### <a name='Arduinoo'></a>Arduinoo
 
 1. Open the project in the Arduino IDE by clicking on `Arduino/Arduino.ino`
 
