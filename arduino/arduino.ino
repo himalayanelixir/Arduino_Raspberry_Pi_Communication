@@ -1,5 +1,6 @@
 // Copyright 2020 Harlen Bains
 // Linted using cpplint
+// Formatted clang-format
 // Google C++ Style Guide https://google.github.io/styleguide/cppguide.html
 #include <Servo.h>
 #include <String.h>
@@ -7,7 +8,8 @@
 // constants
 #define IGNORE_INPUT_TIME 150
 #define MESSAGE_CHAR_LENGTH 300
-
+#define START_MARKER '<'
+#define END_MARKER '>'
 // function declarations
 void RecvWithStartEndMarkers();
 void Finished();
@@ -39,38 +41,32 @@ void loop() {
   if (new_data == true) {
     new_data = false;
     Serial.print("<");
-    PopulateArray();
     ProcessData();
     Finished();
   }
 }
 
-//////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////
-
 void RecvWithStartEndMarkers() {
   // handles the receiving of data over the serial port
   static bool receive_in_progress = false;
   static int char_count = 0;
-  char start_marker = '<';
-  char end_marker = '>';
   char receive_from_usb;
   while (Serial.available() > 0 && new_data == false) {
     receive_from_usb = Serial.read();
     if (receive_in_progress == true) {
-      if (receive_from_usb != end_marker) {
+      if (receive_from_usb != END_MARKER) {
         received_chars[char_count] = receive_from_usb;
         char_count++;
         if (char_count >= MESSAGE_CHAR_LENGTH) {
           char_count = MESSAGE_CHAR_LENGTH - 1;
         }
       } else {
-        received_chars[char_count] = '\0';  // terminate the string
+        received_chars[char_count] = '\0'; // terminate the string
         receive_in_progress = false;
         char_count = 0;
         new_data = true;
       }
-    } else if (receive_from_usb == start_marker) {
+    } else if (receive_from_usb == START_MARKER) {
       receive_in_progress = true;
     }
   }
@@ -88,9 +84,9 @@ void Finished() {
 void ProcessData() {
   number_of_blinks = atoi(received_chars);
   for (int i = 0; i < number_of_blinks; i++) {
-  digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
-  delay(1000);                       // wait for a second
-  digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
-  delay(1000);                       // wait for a second
+    digitalWrite(LED_BUILTIN, HIGH); // turn the LED on
+    delay(1000);                     // wait for a second
+    digitalWrite(LED_BUILTIN, LOW);  // turn the LED off
+    delay(1000);                     // wait for a second
   }
 }
