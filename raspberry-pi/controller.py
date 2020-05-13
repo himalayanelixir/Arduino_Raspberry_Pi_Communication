@@ -1,4 +1,4 @@
-#!/home/pi/controller_env/bin/python3
+#!/home/pi/code/pi_env/bin/python3
 # Copyright 2020 Harlen Bains
 # linted using pylint
 # formatted using black
@@ -24,224 +24,6 @@ class Error(Exception):
     """
 
 
-def find_arduinos():
-    """Run ls command and find all USB devices connected to USB hub
-     assume that all of them are Arduinos.
-
-    Returns:
-      A list of all the ports that are active on the USB hub.
-
-    Raises:
-      Error: if no arrays are found or if more than MAX_NUMBER_OF_ARRAYS is
-    found.
-    """
-    # run ls in subprocess shell and save results
-    try:
-        path_command = "ls " + USB_PATH
-        serial_shell_capture = subprocess.run(
-            [path_command], shell=True, capture_output=True, check=True
-        )
-        # take results and convert byte string into utf-8 and create list based on newlines
-        serial_shell_capture_list = serial_shell_capture.stdout.decode(
-            "utf-8"
-        ).splitlines()
-        # if there is at least one array found then print out number found
-        # other wise print zero and error
-        print(f"\nFound \033[32m{len(serial_shell_capture_list)}\033[0m Array(s)")
-        print(f"of Max of {MAX_NUMBER_OF_ARRAYS}")
-        # make sure that the # arrays found is less than or equal to MAX_NUMBER_OF_ARRAYS
-        if len(serial_shell_capture_list) > MAX_NUMBER_OF_ARRAYS:
-            # make list empty so we don't try to close ports when this error occurs
-            serial_shell_capture_list = []
-            print(
-                "\033[31mERROR: NUMBER OF ARRAYS FOUND GREATER THAN MAX NUMBER OF ARRAYS\033[0m"
-            )
-            raise Error
-    except subprocess.CalledProcessError:
-        # need to still have a valie
-        serial_shell_capture_list = []
-        print(f"\nFound \033[31m0\033[0m Array(s) of Max of {MAX_NUMBER_OF_ARRAYS}")
-        raise Error
-    return serial_shell_capture_list
-
-
-def check_csvs():
-    """Runs functions that check for and lint csv files.
-    """
-    # check if the csvs for desired and current state exist
-    print("\nChecking for CSV Files")
-    check_if_csv_exists(DESIRED_STATE_FILENAME)
-    check_if_csv_exists(CURRENT_STATE_FILENAME)
-    # lint csvs so that the contain valid data and are the coorect size
-    lint_csv_file(DESIRED_STATE_FILENAME)
-    lint_csv_file(CURRENT_STATE_FILENAME)
-
-
-def check_if_csv_exists(csv_filename):
-    """Check if file exists.
-
-    Args:
-      csv_filename: The name of the file we are checking for.
-
-    Raises:
-      Error: If file is not found.
-    """
-    if path.exists(csv_filename):
-        print(csv_filename + "\033[32m FOUND\033[0m")
-    else:
-        print(csv_filename + "\033[31m FAILED: FILE NOT FOUND\033[0m")
-        raise Error
-
-
-def lint_csv_file(csv_filename):
-    """Lint file table is the corret size and values are valid.
-
-    Args:
-      csv_filename: The name of the file we are linting.
-
-    Raises:
-      Error: If the program can not read the file.
-      Error: If the program can not write to the file.
-    """
-    csv_filename_list = []
-    # we initialize this list to a particular size becuase we then iterate over it and
-    # copy values from csv_filename_list. When copying we also make sure that the
-    # values are allowed (filters out non ints and values that are too high or low)
-    csv_filename_list_linted = [
-        ["0" for x in range(MAX_NUMBER_OF_MOTORS)] for y in range(MAX_NUMBER_OF_ARRAYS)
-    ]
-    try:
-        with open(csv_filename, "r") as csv_filename_file:
-            csv_filename_reader = csv.reader(csv_filename_file, delimiter=",")
-            csv_filename_list = list(csv_filename_reader)
-            for count_row in range(0, MAX_NUMBER_OF_ARRAYS):
-                for count_column in range(0, MAX_NUMBER_OF_MOTORS):
-                    try:
-                        # pylint: disable=C0330
-                        if (
-                            int(csv_filename_list[count_row][count_column]) <= MAX_TURNS
-                            and int(csv_filename_list[count_row][count_column]) > 0
-                            and csv_filename_list[count_row][count_column] != ""
-                            and isinstance(
-                                int(csv_filename_list[count_row][count_column]), int
-                            )
-                        ):
-                            csv_filename_list_linted[count_row][
-                                count_column
-                            ] = csv_filename_list[count_row][count_column]
-                        else:
-                            csv_filename_list_linted[count_row][count_column] = "0"
-                    except (IndexError, ValueError):
-                        csv_filename_list_linted[count_row][count_column] = "0"
-    except EnvironmentError:
-        SPINNER.write(csv_filename + " \033[31m" + "FAILED: CAN'T READ CSV" + "\033[0m")
-        raise Error
-    # write values to file overwriting previous file
-    try:
-        with open(csv_filename, "w", newline="") as csv_filename_file:
-            csv_filename_writer = csv.writer(csv_filename_file, quoting=csv.QUOTE_ALL)
-            csv_filename_writer.writerows(csv_filename_list_linted)
-            SPINNER.write(csv_filename + " \033[32m" + "LINTED" + "\033[0m")
-    except EnvironmentError:
-        SPINNER.write(
-            csv_filename + " \033[31m" + "FAILED: CAN'T WRITE CSV" + "\033[0m"
-        )
-        raise Error
-
-
-def lint_serial_port_values(serial_ports):
-    """Makes sure that the numbers for array number and number of motors is valid.
-
-    Args:
-      serial_ports: List containing address of USB ports, pySerial object, array number,
-        and number of motors.
-
-    Raises:
-      Error: Duplicate array numbers
-      Error: Number of arrys is out of range or too many are connected.
-      Error: Number of motors is out or range.
-    """
-    list_array_numbers = []
-    list_motor_numbers = []
-    print("\nChecking Array and Motor Numbers")
-    for row in serial_ports:
-        list_array_numbers.append(row[2])
-        list_motor_numbers.append(row[3])
-    # check if there are any duplicates
-    if len(list_array_numbers) != len(set(list_array_numbers)):
-        print("Array Numbers \033[31mFAILED: DUPLICATES\033[0m")
-        raise Error
-    # check and see if any of the arrays are out of the correct range
-    for value in list_array_numbers:
-        # >= because array numbers from the Arduino start at 0
-        if int(value) >= MAX_NUMBER_OF_ARRAYS or int(value) < 0:
-            print(
-                "Array Numbers \033[31mFAILED: OUT OF RANGE OR TOO MANY ARRAYS CONNECTED\033[0m"
-            )
-            raise Error
-    # check and see if any of the motor numbers are out of the correct range
-    for value in list_motor_numbers:
-        # > because motor numbers start at 1 when counted aka 0 motors means no motors
-        # while 1 motor means #1. When sending commands motor one is considered as #0
-        if int(value) > MAX_NUMBER_OF_MOTORS or int(value) < 1:
-            print("Motor Numbers \033[31mFAILED: OUT OF RANGE\033[0m")
-            raise Error
-
-    print("Array Numbers \033[32mLINTED\033[0m")
-    print("Motor Numbers \033[32mLINTED\033[0m")
-
-
-def commands_from_csv(serial_ports):
-    """Reads data from desiered_state.csv, lints it, and then executes the commands.
-
-    Args:
-      serial_ports: List containing address of USB ports, pySerial object, array number,
-        and number of motors.
-    """
-    # fill command string
-    command_string = ""
-    desired_state_list = []
-    current_state_list = []
-    # not putting try except blocks around with statements because they have
-    # already been read and written to before and are accessable
-    with open(DESIRED_STATE_FILENAME, "r") as desired_state_file:
-        desired_state_reader = csv.reader(desired_state_file, delimiter=",")
-        desired_state_list = list(desired_state_reader)
-    with open(CURRENT_STATE_FILENAME, "r", newline="") as current_state_file:
-        current_state_reader = csv.reader(current_state_file, delimiter=",")
-        current_state_list = list(current_state_reader)
-    for count_row, _ in enumerate(serial_ports):
-        # beginning of every command for an array
-        command_string += "<"
-        # get desired state row correspnding to the array number
-        desired_row = desired_state_list[serial_ports[count_row][2]]
-        # get current state row correspnding to the array number
-        current_row = current_state_list[serial_ports[count_row][2]]
-        for count_column, _ in enumerate(desired_row):
-            # < because motor number isn't counting from zero
-            if count_column < serial_ports[count_row][3]:
-                difference = int(current_row[count_column]) - int(
-                    desired_row[count_column]
-                )
-                if difference < 0:
-                    command_string += "Down,"
-                elif difference > 0:
-                    command_string += "Up,"
-                else:
-                    command_string += "None,"
-                # make sure that the number of turns is positive
-                command_string += str(abs(difference)) + ","
-        # remove extra comma
-        command_string = command_string[:-1]
-        command_string += ">;"
-    # remove final semicolon
-    command_string = command_string[:-1]
-    # call execute commands
-    print(command_string)
-    execute_commands(serial_ports, command_string)
-    shutil.copy2(DESIRED_STATE_FILENAME, CURRENT_STATE_FILENAME)
-
-
 def commands_from_variable(serial_ports, variable_string):
     """Sends the same command to every motor in the ceiling. Used for reset and testing.
 
@@ -250,28 +32,8 @@ def commands_from_variable(serial_ports, variable_string):
         and number of motors.
       variable_string: Command that we want every motor to execute. Example: "Up,100,".
     """
-    command_string = ""
-    # first we zero the current state file
-    current_state_list_zero = [
-        ["0" for x in range(MAX_NUMBER_OF_ARRAYS)] for y in range(MAX_NUMBER_OF_MOTORS)
-    ]
-    with open(CURRENT_STATE_FILENAME, "w", newline="") as current_state_file:
-        current_state_writer = csv.writer(current_state_file, quoting=csv.QUOTE_ALL)
-        current_state_writer.writerows(current_state_list_zero)
-
-    for count_row, _ in enumerate(serial_ports):
-        # beginning of every command for an array
-        command_string += "<"
-        for _ in range(serial_ports[count_row][3]):
-            command_string += variable_string
-        # remove extra comma
-        command_string = command_string[:-1]
-        command_string += ">;"
-    # remove final semicolon
-    command_string = command_string[:-1]
-    # call execute commands
-    print(command_string)
-    execute_commands(serial_ports, command_string)
+    print(variable_string)
+    execute_commands(serial_ports, variable_string)
 
 
 def execute_commands(serial_ports, command_string_execute):
@@ -299,9 +61,6 @@ def execute_commands(serial_ports, command_string_execute):
     SPINNER.stop()
 
 
-##############################################################################
-##############################################################################
-##############################################################################
 def open_ports(serial_ports):
     """Open ports and create pySerial objects saving them to serial_ports.
 
@@ -403,13 +162,7 @@ def wait_for_arduino_connection(serial_ports, port, results):
     """
     error = False
     try:
-        array_info = wait_for_arduino_connection_execute(serial_ports, port)
-        serial_ports[port] = [
-            serial_ports[port][0],
-            serial_ports[port][1],
-            array_info[0],
-            array_info[1],
-        ]
+        wait_for_arduino_connection_execute(serial_ports, port)
         SPINNER.write("Serial Port " + str(port) + " \033[32m" + "READY" + "\033[0m")
     except timeout_decorator.TimeoutError:
         error = True
@@ -451,9 +204,6 @@ def wait_for_arduino_connection_execute(serial_ports, port):
         while serial_ports[port][1].inWaiting() == 0:
             pass
         msg = recieve_from_arduino(serial_ports, port)
-    # gets the array number and the number of motors in the array
-    array_info = [int(i) for i in msg.split() if i.isdigit()]
-    return array_info
 
 
 def recieve_from_arduino(serial_ports, port):
@@ -568,16 +318,11 @@ def close_connections(serial_ports):
     SPINNER.stop()
 
 
-##############################################################################
-##############################################################################
-##############################################################################
-
-
 def main():
     """Loop of the program. Provides tui to interact with the ceiling sculpture
     """
     # address of USB port,pySerial object, array number, and number of motors
-    serial_ports = []
+    serial_ports = [USB_PATH]
     while True:
         try:
             # wait for user to want to run program
@@ -586,54 +331,26 @@ def main():
             )
             if input_text_1 in ("Exit", "exit"):
                 break
-            # find all usb devices connected at /dev/ttyU*
-            # we are assuming that all usb devices at this address are Arduinos
-            serial_ports = find_arduinos()
             # initialize serial_objecs size based on the number of Arduinos
             # open ports at address /dev/ttyU* that we found earlier
             serial_ports = open_ports(serial_ports)
             # connect to the arrays and then save the array number and number of motors
             serial_ports = connect_to_arrays(serial_ports)
-            # lint the data we recieved from the arrays
-            lint_serial_port_values(serial_ports)
             # if error didn't occour exit this loop and move on to the next one
             break
         except Error:
             # if we got to connecting to ports then close ports otherwise loop
             if len(serial_ports) != 0:
                 close_connections(serial_ports)
-    ###########
     while input_text_1 not in ("Exit", "exit"):
         try:
             print("===========\n")
             input_text_2 = input(
-                "Enter '1' to set ceiling from csv, '2' to reset, and 'Exit' to close program)\n : "
+                "Enter the number of time you want the LED to blink or enter 'Exit' to close the program:\n : "
             )
-            # csv mode
-            if input_text_2 == "1":
-                print("CSV Mode\n")
-                check_csvs()
-                commands_from_csv(serial_ports)
-            # csv reset
-            elif input_text_2 == "2":
-                print("CSV Reset Mode\n")
-                check_csvs()
-                commands_from_variable(serial_ports, "Up,100,")
-            # array test
-            elif input_text_2 == "3":
-                print("Test Mode (Only way to stop is to 'ctrl + c')\n")
-                while True:
-                    print("Resetting\n")
-                    commands_from_variable(serial_ports, "Up,100,")
-                    print("Wait 10 seconds\n")
-                    time.sleep(10)
-                    print("Moving Down 5 Turns\n")
-                    commands_from_variable(serial_ports, "Down,5,")
-                    print("Wait 10 seconds\n")
-                    time.sleep(10)
-            # exit
+            if input_text_2.isnumeric():
+                commands_from_variable(serial_ports, '<' + input_text_2 + '>')
             elif input_text_2 in ("Exit", "exit"):
-                # close all serial connections
                 close_connections(serial_ports)
                 break
             else:
@@ -649,12 +366,8 @@ START_MARKER = 60
 END_MARKER = 62
 SPINNER = yaspin(Spinners.weather)
 # adjustable
-MAX_TURNS = 10
-MAX_NUMBER_OF_ARRAYS = 4
-MAX_NUMBER_OF_MOTORS = 10
-USB_PATH = "/dev/ttyU*"
-DESIRED_STATE_FILENAME = "desired-state.csv"
-CURRENT_STATE_FILENAME = "current-state.csv"
+USB_PATH = "/dev/ttyUSB0"
+
 
 if __name__ == "__main__":
     main()
