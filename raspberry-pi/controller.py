@@ -6,11 +6,6 @@
 Once a command is sent it then waits a reply and then loops.
 """
 
-import csv
-import shutil
-import subprocess
-import time
-from os import path
 from threading import Thread
 import serial  # pylint: disable=import-error
 from yaspin import yaspin  # pylint: disable=import-error
@@ -22,18 +17,6 @@ class Error(Exception):
     """Exception that is raised when an error occurs in the program
     causes the program to print out a message and then loop.
     """
-
-
-def commands_from_variable(serial_ports, variable_string):
-    """Sends the same command to every motor in the ceiling. Used for reset and testing.
-
-    Args:
-      serial_ports: List containing address of USB ports, pySerial object, array number,
-        and number of motors.
-      variable_string: Command that we want every motor to execute. Example: "Up,100,".
-    """
-    print(variable_string)
-    execute_commands(serial_ports, variable_string)
 
 
 def execute_commands(serial_ports, command_string_execute):
@@ -346,10 +329,11 @@ def main():
         try:
             print("===========\n")
             input_text_2 = input(
-                "Enter the number of time you want the LED to blink or enter 'Exit' to close the program:\n : "
+                "Enter the number of time you want the LED to blink or enter \
+                'Exit' to close the program:\n : "
             )
             if input_text_2.isnumeric():
-                commands_from_variable(serial_ports, '<' + input_text_2 + '>')
+                execute_commands(serial_ports, "<" + input_text_2 + ">")
             elif input_text_2 in ("Exit", "exit"):
                 close_connections(serial_ports)
                 break
