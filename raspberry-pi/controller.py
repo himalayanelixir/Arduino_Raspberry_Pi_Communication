@@ -329,8 +329,8 @@ def main():
         try:
             print("===========\n")
             input_text_2 = input(
-                "Enter the number of time you want the LED to blink or enter \
-                'Exit' to close the program:\n : "
+                "Enter the number of time you want the LED to blink or enter " +
+                "'Exit' to close the program:\n : "
             )
             if input_text_2.isnumeric():
                 execute_commands(serial_ports, "<" + input_text_2 + ">")
