@@ -2,7 +2,7 @@
 <!-- vscode-markdown-toc -->
 * [Instructions](#Instructions)
 	* [Raspberry Pi](#RaspberryPi)
-	* [Arduinoo](#Arduinoo)
+	* [Arduino](#Arduino)
 
 <!-- vscode-markdown-toc-config
 	numbering=false
@@ -35,7 +35,7 @@ The function of this code is to be able to pass messages between a Raspberry Pi 
  3. Enter commands using the format `<Up,Down,Left,Right>`. Currently the code is made to look for `< >` at the beginning and end of commands and different commands are separated by a comma. 
 
 
-### <a name='Arduinoo'></a>Arduinoo
+### <a name='Arduino'></a>Arduino
 
 1. Open the project in the Arduino IDE by clicking on `Arduino/Arduino.ino`
 
