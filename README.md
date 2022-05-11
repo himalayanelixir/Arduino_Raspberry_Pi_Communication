@@ -1,4 +1,4 @@
-# Arduino Pi Communication
+# Pi Arduino Communication
 <!-- vscode-markdown-toc -->
 * [Instructions](#Instructions)
 	* [Raspberry Pi](#RaspberryPi)
